@@ -1,2 +1,0 @@
-# JetFighter
-Using Replit Pygame

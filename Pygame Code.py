@@ -13,8 +13,14 @@ from pygame.locals import (
     K_SPACE) # Button to fire
 
 
+# Sizing
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
+
+PLAYER_SIZE = (90, 36)
+ENEMY_SIZE = (70, 34)
+CLOUD_SIZE = (80, 39)
+BULLET_SIZE = (40, 40)
 
 # Define some colors
 BLACK = (0, 0, 0)
@@ -23,18 +29,20 @@ RED = (255, 0, 0)
 
 BULLET_SPEED = 10
 BULLET_COLOR = (255, 0, 0)
+BULLET_COOLDOWN = 3000
 
 
 class Player(pygame.sprite.Sprite):
-
     def __init__(self):
         super(Player, self).__init__()
-        self.surf = pygame.image.load("jet.png").convert()
+        self.surf = pygame.image.load("jet.png").convert_alpha()
+        self.surf = pygame.transform.scale(self.surf, PLAYER_SIZE)
         self.surf.set_colorkey((255, 255, 255), RLEACCEL)
         self.rect = self.surf.get_rect()
-        self.last_shot_time = 0 # Add variable to tack time since last shot
+        self.last_shot_time = -BULLET_COOLDOWN # Add variable to track time since last shot
 
     def update(self, pressed_key, current_time):
+        # print(pressed_key)
         if pressed_key[K_UP]:
             self.rect.move_ip(0, -5)
         if pressed_key[K_DOWN]:
@@ -55,9 +63,10 @@ class Player(pygame.sprite.Sprite):
           self.rect.bottom = SCREEN_HEIGHT
 
         # Check if enough time has passed since last shot
-        time_since_last_shot = current_time - self.last_shot_time
-        if time_since_last_shot > 3000: # 3 second cooldown
-          if pressed_key[K_SPACE]:
+        if pressed_key[K_SPACE]:
+          time_since_last_shot = current_time - self.last_shot_time
+          if time_since_last_shot > BULLET_COOLDOWN: # 3 second cooldown
+            self.last_shot_time = current_time
             self.shoot(all_sprites, bullets)
             self.last_shot_time = current_time
       
@@ -70,14 +79,15 @@ class Player(pygame.sprite.Sprite):
 class Enemy(pygame.sprite.Sprite):
   def __init__(self):
     super(Enemy, self).__init__()
-    self.surf = pygame.image.load("missile.png").convert()
+    self.surf = pygame.image.load("missile.png").convert_alpha()
+    self.surf = pygame.transform.scale(self.surf, ENEMY_SIZE)
     self.surf.set_colorkey((255, 255, 255), RLEACCEL)
     self.rect = self.surf.get_rect(
       center=(random.randint(SCREEN_WIDTH + 20, SCREEN_WIDTH + 100), random.randint(0, SCREEN_HEIGHT),))
 
     self.speed = random.randint(5, 10)
 
-  def update(self, pressed_key):
+  def update(self):
     self.rect.move_ip(-self.speed, 0)
     if self.rect.right <0:
       self.kill()
@@ -86,7 +96,8 @@ class Enemy(pygame.sprite.Sprite):
 class Cloud(pygame.sprite.Sprite):
   def __init__(self):
     super(Cloud, self).__init__()
-    self.surf = pygame.image.load("cloud.png").convert()
+    self.surf = pygame.image.load("cloud.png").convert_alpha()
+    self.surf = pygame.transform.scale(self.surf, CLOUD_SIZE)
     self.surf.set_colorkey((0, 0, 0), RLEACCEL)
     self.rect = self.surf.get_rect(
       center=(random.randint(SCREEN_WIDTH + 20, SCREEN_WIDTH + 100), random.randint(0, SCREEN_HEIGHT),))
@@ -99,14 +110,15 @@ class Cloud(pygame.sprite.Sprite):
 class Bullet(pygame.sprite.Sprite):
   def __init__(self, center):
     super().__init__()
-    self.surf = pygame.image.load("bullet.png").convert()
+    self.surf = pygame.image.load("bullet.png").convert_alpha()
+    self.surf = pygame.transform.scale(self.surf, BULLET_SIZE)
     self.surf.set_colorkey((0, 0, 0), RLEACCEL)
     self.rect = self.surf.get_rect(center=center)
     
     self.speed = 10
     self.color = (135, 206, 250)
 
-  def update(self, player_pos):
+  def update(self):
     if self.rect.bottom < 0:
       self.kill()
   
@@ -143,9 +155,9 @@ while running:
     for event in pygame.event.get():
         if event.type == KEYDOWN:
             if event.key == K_ESCAPE:
-                running = False
-            if event.key == K_SPACE:
-                player.shoot(all_sprites, bullets)
+              running = False
+            # if event.key == K_SPACE:
+            #   player.shoot(all_sprites, bullets)
 
         elif event.type == QUIT:
             running = False
@@ -171,30 +183,30 @@ while running:
       player.kill()
       running = False
 
-    for bullet in bullets:
-      bullet.update(player.rect.midtop)
-
-    player_pos = player.rect.midtop
-    player.update(pygame.key.get_pressed)
-      
-    # screen.blit(player.surf, player.rect)
+    # for bullet in bullets:
+    #   bullet.update(player.rect.midtop)
 
     current_time = pygame.time.get_ticks()
     pressed_keys = pygame.key.get_pressed()
+    player_pos = player.rect.midtop
+    player.update(pressed_keys, current_time)
+      
+    # screen.blit(player.surf, player.rect)
+
     
-    if pressed_keys[K_SPACE]:
-      new_bullet = Bullet(player.rect.midtop)
-      bullets.add(new_bullet)
-      all_sprites.add(new_bullet)
+    # if pressed_keys[K_SPACE]:
+    #   new_bullet = Bullet(player.rect.midtop)
+    #   bullets.add(new_bullet)
+    #   all_sprites.add(new_bullet)
 
 
-    for entity in all_sprites:
-      if hasattr(entity, "update"):
-        entity.update(pressed_keys, current_time)
+    # for entity in all_sprites:
+    #   if hasattr(entity, "update"):
+    #     entity.update(pressed_keys, current_time)
 
-    player.update(pressed_keys, pygame.time.get_ticks())
-    bullets.update(player.rect.midtop)
-    enemies.update(pressed_keys)
+    # player.update(pressed_keys, pygame.time.get_ticks())
+    bullets.update()
+    enemies.update()
     clouds.update()
 
     # screen.fill((135, 206, 250))
